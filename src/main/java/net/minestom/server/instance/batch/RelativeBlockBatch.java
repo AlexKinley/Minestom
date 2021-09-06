@@ -5,6 +5,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
+import net.minestom.server.instance.block.BlockGetter;
 import net.minestom.server.utils.validate.Check;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -28,7 +29,7 @@ import org.jetbrains.annotations.Nullable;
  * @see Batch
  * @see AbsoluteBlockBatch
  */
-public class RelativeBlockBatch implements Batch<Runnable> {
+public class RelativeBlockBatch implements Batch<Runnable>, BlockGetter {
     // relative pos format: nothing/relative x/relative y/relative z (16/16/16/16 bits)
 
     // Need to be synchronized manually
@@ -77,6 +78,34 @@ public class RelativeBlockBatch implements Batch<Runnable> {
         synchronized (blockIdMap) {
             this.blockIdMap.put(pos, block);
         }
+    }
+
+    @Override
+    public @Nullable Block getBlock(int x, int y, int z, @NotNull Condition condition) {
+        if (firstEntry) {
+            // no blocks, so we immediately exit
+            return condition == Condition.NONE ? Block.AIR : null;
+        }
+
+        x -= offsetX;
+        y -= offsetY;
+        z -= offsetZ;
+
+        Check.argCondition(Math.abs(x) > Short.MAX_VALUE, "Relative x position may not be more than 16 bits long.");
+        Check.argCondition(Math.abs(y) > Short.MAX_VALUE, "Relative y position may not be more than 16 bits long.");
+        Check.argCondition(Math.abs(z) > Short.MAX_VALUE, "Relative z position may not be more than 16 bits long.");
+
+        long pos = Short.toUnsignedLong((short)x);
+        pos = (pos << 16) | Short.toUnsignedLong((short)y);
+        pos = (pos << 16) | Short.toUnsignedLong((short)z);
+
+        final var block = this.blockIdMap.get(pos);
+
+        if (block == null) {
+            return condition == Condition.NONE ? Block.AIR : null;
+        }
+
+        return block;
     }
 
     @Override
@@ -192,5 +221,20 @@ public class RelativeBlockBatch implements Batch<Runnable> {
             }
         }
         return batch;
+    }
+
+    @Override
+    public @Nullable Block getBlock(int x, int y, int z, @NotNull Condition condition) {
+        long pos = Short.toUnsignedLong((short)x);
+        pos = (pos << 16) | Short.toUnsignedLong((short)y);
+        pos = (pos << 16) | Short.toUnsignedLong((short)z);
+
+        final var block = this.blockIdMap.get(pos);
+
+        if (block == null) {
+            return condition == Condition.NONE ? Block.AIR : null;
+        }
+
+        return block;
     }
 }

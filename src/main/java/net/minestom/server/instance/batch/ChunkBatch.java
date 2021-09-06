@@ -8,6 +8,7 @@ import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.InstanceContainer;
 import net.minestom.server.instance.block.Block;
+import net.minestom.server.instance.block.BlockGetter;
 import net.minestom.server.utils.callback.OptionalCallback;
 import net.minestom.server.utils.chunk.ChunkCallback;
 import net.minestom.server.utils.chunk.ChunkUtils;
@@ -58,6 +59,17 @@ public class ChunkBatch implements Batch<ChunkCallback> {
         synchronized (blocks) {
             this.blocks.put(index, block);
         }
+    }
+
+    @Override
+    public @Nullable Block getBlock(int x, int y, int z, @NotNull Condition condition) {
+        final int index = ChunkUtils.getBlockIndex(x, y, z);
+        final var block = this.blocks.get(index);
+
+        if (block == null) {
+            return condition == Condition.NONE ? Block.AIR : null;
+        }
+        return block;
     }
 
     @Override
